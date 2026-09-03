@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Current Weather</title>
+  <style>
+    body { font-family: system-ui, Arial; padding: 1.5rem; max-width: 720px; margin: auto; }
+    #card { border: 1px solid #ddd; padding: 1rem; border-radius: 8px; margin-top: 1rem; }
+    .muted { color: #666; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>Current Weather</h1>
+  <p class="muted">Click the button to share your location so we can show the current weather.</p>
+  <button id="getWeather">Get weather for my location</button>
+  <div id="status"></div>
+  <div id="card" hidden>
+    <h2 id="place"></h2>
+    <img id="icon" alt="" />
+    <p id="desc"></p>
+    <p><strong>Temperature:</strong> <span id="temp"></span> °C</p>
+    <p><strong>Feels like:</strong> <span id="feels"></span> °C</p>
+  </div>
+
+  <script>
+    const status = document.getElementById('status');
+    const card = document.getElementById('card');
+    document.getElementById('getWeather').addEventListener('click', () => {
+      card.hidden = true;
+      status.textContent = 'Requesting location…';
+      if (!navigator.geolocation) {
+        status.textContent = 'Geolocation is not supported by your browser';
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        status.textContent = 'Fetching weather…';
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        try {
+          const resp = await fetch(`/weather?lat=${lat}&lon=${lon}`);
+          if (!resp.ok) {
+            const err = await resp.json().catch(()=>({error:resp.statusText}));
+            status.textContent = 'Error: ' + (err.error || resp.statusText);
+            return;
+          }
+          const data = await resp.json();
+          status.textContent = '';
+          document.getElementById('place').textContent = data.name || 'Your location';
+          document.getElementById('desc').textContent = data.description || '';
+          document.getElementById('temp').textContent = data.temp;
+          document.getElementById('feels').textContent = data.feels_like;
+          document.getElementById('icon').src = data.icon ? `https://openweathermap.org/img/wn/${data.icon}@2x.png` : '';
+          card.hidden = false;
+        } catch (e) {
+          status.textContent = 'Network error: ' + e.message;
+        }
+      }, (err) => {
+        status.textContent = 'Location error: ' + err.message;
+      }, { enableHighAccuracy: false, timeout: 10000 });
+    });
+  </script>
+</body>
+</html>
