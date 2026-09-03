@@ -8,13 +8,19 @@
     body { font-family: system-ui, Arial; padding: 1.5rem; max-width: 720px; margin: auto; }
     #card { border: 1px solid #ddd; padding: 1rem; border-radius: 8px; margin-top: 1rem; }
     .muted { color: #666; font-size: 0.9rem; }
+    input { padding: 0.5rem; font-size: 1rem; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; }
   </style>
 </head>
 <body>
   <h1>Current Weather</h1>
-  <p class="muted">Click the button to share your location so we can show the current weather.</p>
-  <button id="getWeather">Get weather for my location</button>
+  <p class="muted">Enter a ZIP/postal code to get the current weather for that area.</p>
+
+  <label for="zip">ZIP / Postal code:</label>
+  <input id="zip" name="zip" type="text" placeholder="e.g. 94103 or SW1A 1AA" />
+  <button id="getWeather">Get weather</button>
   <div id="status"></div>
+
   <div id="card" hidden>
     <h2 id="place"></h2>
     <img id="icon" alt="" />
@@ -26,38 +32,34 @@
   <script>
     const status = document.getElementById('status');
     const card = document.getElementById('card');
-    document.getElementById('getWeather').addEventListener('click', () => {
+    document.getElementById('getWeather').addEventListener('click', async () => {
       card.hidden = true;
-      status.textContent = 'Requesting location…';
-      if (!navigator.geolocation) {
-        status.textContent = 'Geolocation is not supported by your browser';
+      status.textContent = '';
+      const zip = document.getElementById('zip').value.trim();
+      if (!zip) {
+        status.textContent = 'Please enter a ZIP or postal code.';
         return;
       }
-      navigator.geolocation.getCurrentPosition(async (pos) => {
-        status.textContent = 'Fetching weather…';
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        try {
-          const resp = await fetch(`/weather?lat=${lat}&lon=${lon}`);
-          if (!resp.ok) {
-            const err = await resp.json().catch(()=>({error:resp.statusText}));
-            status.textContent = 'Error: ' + (err.error || resp.statusText);
-            return;
-          }
-          const data = await resp.json();
-          status.textContent = '';
-          document.getElementById('place').textContent = data.name || 'Your location';
-          document.getElementById('desc').textContent = data.description || '';
-          document.getElementById('temp').textContent = data.temp;
-          document.getElementById('feels').textContent = data.feels_like;
-          document.getElementById('icon').src = data.icon ? `https://openweathermap.org/img/wn/${data.icon}@2x.png` : '';
-          card.hidden = false;
-        } catch (e) {
-          status.textContent = 'Network error: ' + e.message;
+      status.textContent = 'Fetching weather…';
+      try {
+        // Pass zip exactly as entered. For OpenWeather, you can add ",<country_code>" if needed (e.g. "94103,us").
+        const resp = await fetch(`/weather?zip=${encodeURIComponent(zip)}`);
+        if (!resp.ok) {
+          const err = await resp.json().catch(()=>({error:resp.statusText}));
+          status.textContent = 'Error: ' + (err.error || resp.statusText);
+          return;
         }
-      }, (err) => {
-        status.textContent = 'Location error: ' + err.message;
-      }, { enableHighAccuracy: false, timeout: 10000 });
+        const data = await resp.json();
+        status.textContent = '';
+        document.getElementById('place').textContent = data.name || 'Location';
+        document.getElementById('desc').textContent = data.description || '';
+        document.getElementById('temp').textContent = data.temp;
+        document.getElementById('feels').textContent = data.feels_like;
+        document.getElementById('icon').src = data.icon ? `https://openweathermap.org/img/wn/${data.icon}@2x.png` : '';
+        card.hidden = false;
+      } catch (e) {
+        status.textContent = 'Network error: ' + e.message;
+      }
     });
   </script>
 </body>
